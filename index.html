@@ -3,79 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monster Capsule Chase</title>
+    <title>3D Adventure Game</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            margin: 0;
-            padding: 0;
-        }
-        header {
-            background-color: #333;
-            color: white;
-            text-align: center;
-            padding: 1em;
-        }
-        main {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 2em;
-        }
-        #game-container {
-            background-color: #ddd;
-            height: 400px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 2em;
-            margin-bottom: 1em;
-        }
-        #bank-account {
-            font-size: 1.2em;
-            margin-bottom: 1em;
-        }
-        #monster-images {
-            display: flex;
-            justify-content: space-around;
-            margin-bottom: 1em;
-        }
-        #monster-images img {
-            max-width: 200px;
-            height: auto;
-        }
-        footer {
-            background-color: #333;
-            color: white;
-            text-align: center;
-            padding: 1em;
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-        }
+        body { margin: 0; }
+        canvas { display: block; }
     </style>
 </head>
 <body>
-    <header>
-        <h1>Monster Capsule Chase</h1>
-    </header>
-    <main>
-        <div id="game-container">
-            [3D Game Would Render Here]
-        </div>
-        <div id="bank-account">
-            Bank Account: $1000
-        </div>
-        <div id="monster-images">
-            <img src="mon.jpg" alt="Normal Monster">
-            <img src="monh.jpg" alt="Running Monster">
-        </div>
-        <p>Toss capsules at the monsters! But be careful, each page they throw back costs you money!</p>
-    </main>
-    <footer>
-        <a href="https://twitter.com" target="_blank">Twitter</a> | 
-        <a href="https://telegram.org" target="_blank">Telegram</a>
-        <p>CA: [Your Content Advisory Here]</p>
-    </footer>
+    <canvas id="gameCanvas"></canvas>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Set up scene, camera, and renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({canvas: document.getElementById('gameCanvas')});
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        // Create ground
+        const groundGeometry = new THREE.PlaneGeometry(100, 100);
+        const groundMaterial = new THREE.MeshBasicMaterial({color: 0x00ff00});
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        // Load textures
+        const textureLoader = new THREE.TextureLoader();
+        const treeTexture = textureLoader.load('tree.jpg');
+        const stoneTexture = textureLoader.load('stone.jpg');
+        const bushTexture = textureLoader.load('bush.jpg');
+
+        // Create environment objects
+        function createObject(texture, position) {
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshBasicMaterial({map: texture});
+            const object = new THREE.Mesh(geometry, material);
+            object.position.set(position.x, 0.5, position.z);
+            scene.add(object);
+        }
+
+        // Add some trees, stones, and bushes
+        createObject(treeTexture, {x: 5, z: 5});
+        createObject(stoneTexture, {x: -3, z: 2});
+        createObject(bushTexture, {x: 0, z: -4});
+
+        // Create player
+        const playerGeometry = new THREE.BoxGeometry(0.5, 1, 0.5);
+        const playerMaterial = new THREE.MeshBasicMaterial({color: 0x0000ff});
+        const player = new THREE.Mesh(playerGeometry, playerMaterial);
+        player.position.y = 0.5;
+        scene.add(player);
+
+        // Create monster
+        const monsterGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const monsterMaterial = new THREE.MeshBasicMaterial({color: 0xff0000});
+        const monster = new THREE.Mesh(monsterGeometry, monsterMaterial);
+        monster.position.set(3, 0.25, 3);
+        scene.add(monster);
+
+        // Set up camera
+        camera.position.set(0, 5, 10);
+        camera.lookAt(player.position);
+
+        // Simple player movement
+        document.addEventListener('keydown', (event) => {
+            const speed = 0.1;
+            switch(event.key) {
+                case 'ArrowUp':
+                    player.position.z -= speed;
+                    break;
+                case 'ArrowDown':
+                    player.position.z += speed;
+                    break;
+                case 'ArrowLeft':
+                    player.position.x -= speed;
+                    break;
+                case 'ArrowRight':
+                    player.position.x += speed;
+                    break;
+                case 'Space':
+                    throwPill();
+                    break;
+            }
+            camera.lookAt(player.position);
+        });
+
+        // Throw pill function
+        function throwPill() {
+            const pillGeometry = new THREE.SphereGeometry(0.1);
+            const pillMaterial = new THREE.MeshBasicMaterial({color: 0xffff00});
+            const pill = new THREE.Mesh(pillGeometry, pillMaterial);
+            pill.position.copy(player.position);
+            scene.add(pill);
+
+            // Simple pill movement
+            const direction = new THREE.Vector3(
+                monster.position.x - player.position.x,
+                0,
+                monster.position.z - player.position.z
+            ).normalize();
+
+            function animatePill() {
+                pill.position.add(direction.multiplyScalar(0.1));
+                if (pill.position.distanceTo(monster.position) < 0.5) {
+                    scene.remove(pill);
+                    monsterRunAway();
+                } else if (pill.position.distanceTo(player.position) > 10) {
+                    scene.remove(pill);
+                } else {
+                    requestAnimationFrame(animatePill);
+                }
+                renderer.render(scene, camera);
+            }
+            animatePill();
+        }
+
+        // Monster run away function
+        function monsterRunAway() {
+            const direction = new THREE.Vector3(
+                monster.position.x - player.position.x,
+                0,
+                monster.position.z - player.position.z
+            ).normalize();
+
+            function animateMonster() {
+                monster.position.add(direction.multiplyScalar(0.05));
+                if (monster.position.distanceTo(player.position) > 20) {
+                    scene.remove(monster);
+                } else {
+                    requestAnimationFrame(animateMonster);
+                }
+                renderer.render(scene, camera);
+            }
+            animateMonster();
+        }
+
+        // Render loop
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
 </body>
 </html>
