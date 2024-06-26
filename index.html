@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monster Capsule Chase</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 1em;
+        }
+        main {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2em;
+        }
+        #game-container {
+            background-color: #ddd;
+            height: 400px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            margin-bottom: 1em;
+        }
+        #bank-account {
+            font-size: 1.2em;
+            margin-bottom: 1em;
+        }
+        #monster-images {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 1em;
+        }
+        #monster-images img {
+            max-width: 200px;
+            height: auto;
+        }
+        footer {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 1em;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Monster Capsule Chase</h1>
+    </header>
+    <main>
+        <div id="game-container">
+            [3D Game Would Render Here]
+        </div>
+        <div id="bank-account">
+            Bank Account: $1000
+        </div>
+        <div id="monster-images">
+            <img src="mon.jpg" alt="Normal Monster">
+            <img src="monh.jpg" alt="Running Monster">
+        </div>
+        <p>Toss capsules at the monsters! But be careful, each page they throw back costs you money!</p>
+    </main>
+    <footer>
+        <a href="https://twitter.com" target="_blank">Twitter</a> | 
+        <a href="https://telegram.org" target="_blank">Telegram</a>
+        <p>CA: [Your Content Advisory Here]</p>
+    </footer>
+</body>
+</html>
