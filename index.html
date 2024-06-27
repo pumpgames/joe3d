@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Forest Joe Escape</title>
+    <title>3D Forest Joe and Monster Escape</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -18,14 +18,14 @@
 </head>
 <body>
     <div id="info">
-        <div>Health: <span id="health">100</span></div>
+        <div>Bank Account: $<span id="bankAccount">10000</span></div>
         <div>Joes Evaded: <span id="score">0</span></div>
         <div>Pills: <span id="pills">10</span></div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        let scene, camera, renderer, player, joes = [], pills = [], trees = [], stones = [], bushes = [];
-        let health = 100, score = 0, pillCount = 10;
+        let scene, camera, renderer, player, joes = [], monsters = [], pills = [], pages = [], trees = [], bushes = [];
+        let bankAccount = 10000, score = 0, pillCount = 10;
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
         const FOREST_SIZE = 100;
         const OBJECT_COUNT = 50;
@@ -51,6 +51,7 @@
             player = createPlayer();
             scene.add(player);
             createJoes(5);
+            createMonsters(20);
 
             const ambientLight = new THREE.AmbientLight(0x404040);
             scene.add(ambientLight);
@@ -91,15 +92,6 @@
                 tree.lookAt(camera.position);
                 scene.add(tree);
                 trees.push(tree);
-
-                const stoneTexture = loader.load('stone.png');
-                const stoneGeometry = new THREE.PlaneGeometry(2, 2);
-                const stoneMaterial = new THREE.MeshBasicMaterial({ map: stoneTexture, transparent: true, side: THREE.DoubleSide });
-                const stone = new THREE.Mesh(stoneGeometry, stoneMaterial);
-                placeInOpenSpace(stone);
-                stone.lookAt(camera.position);
-                scene.add(stone);
-                stones.push(stone);
 
                 const bushTexture = loader.load('bush.png');
                 const bushGeometry = new THREE.PlaneGeometry(3, 3);
@@ -145,6 +137,22 @@
                     joe.isHit = false;
                     scene.add(joe);
                     joes.push(joe);
+                }
+            });
+        }
+
+        function createMonsters(count) {
+            createJoeTexture('Monster', 'Alert!', 'joe.png', (texture) => {
+                const monsterMaterial = new THREE.SpriteMaterial({ map: texture });
+
+                for (let i = 0; i < count; i++) {
+                    const monster = new THREE.Sprite(monsterMaterial.clone());
+                    monster.scale.set(2.5, 2.5, 1);
+                    placeInOpenSpace(monster);
+                    monster.isHit = false;
+                    monster.lastThrow = 0;
+                    scene.add(monster);
+                    monsters.push(monster);
                 }
             });
         }
@@ -203,8 +211,22 @@
             }
         }
 
+        function throwPage(monster) {
+            const pageGeometry = new THREE.PlaneGeometry(0.5, 0.7);
+            const pageMaterial = new THREE.MeshPhongMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide });
+            const pageMesh = new THREE.Mesh(pageGeometry, pageMaterial);
+            
+            pageMesh.position.copy(monster.position);
+            
+            const directionToPlayer = new THREE.Vector3().subVectors(player.position, monster.position).normalize();
+            pageMesh.velocity = directionToPlayer.multiplyScalar(0.3);
+            
+            scene.add(pageMesh);
+            pages.push(pageMesh);
+        }
+
         function updateHUD() {
-            document.getElementById('health').textContent = health;
+            document.getElementById('bankAccount').textContent = bankAccount;
             document.getElementById('score').textContent = score;
             document.getElementById('pills').textContent = pillCount;
         }
@@ -239,10 +261,10 @@
                     joe.position.add(directionToPlayer.multiplyScalar(0.03));
 
                     if (player.position.distanceTo(joe.position) < 2) {
-                        health -= 1;
+                        bankAccount -= 10;
                         updateHUD();
-                        if (health <= 0) {
-                            alert('Game Over!');
+                        if (bankAccount <= 0) {
+                            alert('Game Over! Your bank account is empty!');
                             location.reload();
                         }
                     }
@@ -253,6 +275,26 @@
                     if (joe.position.distanceTo(player.position) > FOREST_SIZE * 0.5) {
                         scene.remove(joe);
                         joes.splice(joeIndex, 1);
+                    }
+                }
+            });
+
+            monsters.forEach((monster, monsterIndex) => {
+                if (!monster.isHit) {
+                    const directionToPlayer = new THREE.Vector3().subVectors(player.position, monster.position).normalize();
+                    monster.position.add(directionToPlayer.multiplyScalar(0.02));
+
+                    if (Date.now() - monster.lastThrow > 2000) {  // Throw a page every 2 seconds
+                        throwPage(monster);
+                        monster.lastThrow = Date.now();
+                    }
+                } else {
+                    const directionFromPlayer = new THREE.Vector3().subVectors(monster.position, player.position).normalize();
+                    monster.position.add(directionFromPlayer.multiplyScalar(0.04));
+
+                    if (monster.position.distanceTo(player.position) > FOREST_SIZE * 0.5) {
+                        scene.remove(monster);
+                        monsters.splice(monsterIndex, 1);
                     }
                 }
             });
@@ -271,6 +313,17 @@
                         updateHUD();
                     }
                 });
+
+                monsters.forEach((monster, monsterIndex) => {
+                    if (!monster.isHit && pill.position.distanceTo(monster.position) < 1.5) {
+                        changeJoeTexture(monster);
+                        monster.isHit = true;
+                        scene.remove(pill);
+                        pills.splice(pillIndex, 1);
+                        score++;
+                        updateHUD();
+                    }
+                });
                 
                 if (pill.position.length() > FOREST_SIZE) {
                     scene.remove(pill);
@@ -278,8 +331,29 @@
                 }
             });
 
+            pages.forEach((page, pageIndex) => {
+                page.position.add(page.velocity);
+                page.rotation.x += 0.1;
+
+                if (page.position.distanceTo(player.position) < 1) {
+                    bankAccount -= 100;
+                    updateHUD();
+                    scene.remove(page);
+                    pages.splice(pageIndex, 1);
+
+                    if (bankAccount <= 0) {
+                        alert('Game Over! Your bank account is empty!');
+                        location.reload();
+                    }
+                }
+
+                if (page.position.length() > FOREST_SIZE) {
+                    scene.remove(page);
+                    pages.splice(pageIndex, 1);
+                }
+            });
+
             trees.forEach(tree => tree.lookAt(camera.position));
-            stones.forEach(stone => stone.lookAt(camera.position));
             bushes.forEach(bush => bush.lookAt(camera.position));
 
             renderer.render(scene, camera);
