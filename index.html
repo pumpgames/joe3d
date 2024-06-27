@@ -38,9 +38,7 @@
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        let scene, camera, renderer, monsters = [], pills = [], pages = [], trees = [], bushes = [], capsules = [];
-        let bankAccount = 10000, score = 0, pillCount = 20;
-        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let scene, camera, renderer, player, joes = [], pills = 20, score = 0, bankAccount = 10000;
 
         function init() {
             scene = new THREE.Scene();
@@ -50,221 +48,90 @@
             document.body.appendChild(renderer.domElement);
 
             // Ground
-            const groundGeometry = new THREE.PlaneGeometry(200, 200);
+            const groundGeometry = new THREE.PlaneGeometry(100, 100);
             const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x228B22 });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2;
             scene.add(ground);
 
-            // Load textures
-            const loader = new THREE.TextureLoader();
-            const joeTexture = loader.load('joe.png');
-            const joeBackTexture = loader.load('joeback.png');
-            const treeTexture = loader.load('tree.png');
-            const bushTexture = loader.load('bush.png');
+            // Player
+            player = new THREE.Group();
+            scene.add(player);
+            player.add(camera);
+            player.position.set(0, 1.6, 0);
 
-            // Create monsters
+            // Joes
             for (let i = 0; i < 50; i++) {
-                const monster = new THREE.Sprite(new THREE.SpriteMaterial({ map: joeTexture }));
-                monster.position.set(Math.random() * 180 - 90, 1, Math.random() * 180 - 90);
-                monster.scale.set(2, 2, 1);
-                monster.userData = { isHit: false, lastThrow: 0 };
-                scene.add(monster);
-                monsters.push(monster);
+                const joeGeometry = new THREE.BoxGeometry(1, 2, 1);
+                const joeMaterial = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
+                const joe = new THREE.Mesh(joeGeometry, joeMaterial);
+                joe.position.set(Math.random() * 80 - 40, 1, Math.random() * 80 - 40);
+                scene.add(joe);
+                joes.push(joe);
             }
 
-            // Create trees and bushes
-            for (let i = 0; i < 50; i++) {
-                const tree = new THREE.Sprite(new THREE.SpriteMaterial({ map: treeTexture }));
-                tree.position.set(Math.random() * 190 - 95, 2, Math.random() * 190 - 95);
-                tree.scale.set(4, 4, 1);
-                scene.add(tree);
-                trees.push(tree);
-
-                const bush = new THREE.Sprite(new THREE.SpriteMaterial({ map: bushTexture }));
-                bush.position.set(Math.random() * 190 - 95, 1, Math.random() * 190 - 95);
-                bush.scale.set(2, 2, 1);
-                scene.add(bush);
-                bushes.push(bush);
-            }
-
-            // Create capsules
-            for (let i = 0; i < 20; i++) {
-                const capsuleGeometry = new THREE.CapsuleGeometry(0.2, 0.5, 4, 8);
-                const capsuleMaterial = new THREE.MeshBasicMaterial({ color: 0x00FF00 });
-                const capsule = new THREE.Mesh(capsuleGeometry, capsuleMaterial);
-                capsule.position.set(Math.random() * 180 - 90, 0.5, Math.random() * 180 - 90);
-                scene.add(capsule);
-                capsules.push(capsule);
-            }
-
-            camera.position.set(0, 1.6, 0);
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
 
             document.addEventListener('keydown', onKeyDown);
-            document.addEventListener('keyup', onKeyUp);
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('click', throwPill);
-
-            renderer.domElement.requestPointerLock = renderer.domElement.requestPointerLock || renderer.domElement.mozRequestPointerLock;
-            renderer.domElement.onclick = function() {
-                renderer.domElement.requestPointerLock();
-            };
 
             animate();
         }
 
         function onKeyDown(event) {
-            switch (event.code) {
-                case 'KeyW': moveForward = true; break;
-                case 'KeyS': moveBackward = true; break;
-                case 'KeyA': moveLeft = true; break;
-                case 'KeyD': moveRight = true; break;
-            }
-        }
-
-        function onKeyUp(event) {
-            switch (event.code) {
-                case 'KeyW': moveForward = false; break;
-                case 'KeyS': moveBackward = false; break;
-                case 'KeyA': moveLeft = false; break;
-                case 'KeyD': moveRight = false; break;
+            const speed = 0.5;
+            switch (event.key) {
+                case 'w': player.position.z -= speed; break;
+                case 's': player.position.z += speed; break;
+                case 'a': player.position.x -= speed; break;
+                case 'd': player.position.x += speed; break;
             }
         }
 
         function onMouseMove(event) {
-            if (document.pointerLockElement === renderer.domElement) {
-                camera.rotation.y -= event.movementX * 0.002;
-                camera.rotation.x -= event.movementY * 0.002;
-                camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
-            }
+            player.rotation.y -= event.movementX * 0.002;
+            camera.rotation.x -= event.movementY * 0.002;
+            camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
         }
 
         function throwPill() {
-            if (pillCount > 0) {
-                const pillGeometry = new THREE.SphereGeometry(0.1, 16, 16);
-                const pillMaterial = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
-                const pill = new THREE.Mesh(pillGeometry, pillMaterial);
-                pill.position.set(camera.position.x, camera.position.y, camera.position.z);
-                
-                const direction = new THREE.Vector3();
-                camera.getWorldDirection(direction);
-                pill.velocity = direction.multiplyScalar(0.5);
-                
-                scene.add(pill);
-                pills.push(pill);
-                
-                pillCount--;
+            if (pills > 0) {
+                pills--;
                 updateHUD();
+                // Pill throwing logic here
             }
-        }
-
-        function throwPage(monster) {
-            const pageGeometry = new THREE.PlaneGeometry(0.5, 0.7);
-            const pageMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide });
-            const page = new THREE.Mesh(pageGeometry, pageMaterial);
-            page.position.copy(monster.position);
-            
-            const direction = new THREE.Vector3().subVectors(camera.position, monster.position).normalize();
-            page.velocity = direction.multiplyScalar(0.3);
-            
-            scene.add(page);
-            pages.push(page);
         }
 
         function updateHUD() {
             document.getElementById('bankAccount').textContent = bankAccount;
             document.getElementById('score').textContent = score;
-            document.getElementById('pills').textContent = pillCount;
+            document.getElementById('pills').textContent = pills;
         }
 
         function animate() {
             requestAnimationFrame(animate);
 
-            const speed = 0.1;
-            const direction = new THREE.Vector3();
-            camera.getWorldDirection(direction);
-            
-            if (moveForward) camera.position.add(direction.multiplyScalar(speed));
-            if (moveBackward) camera.position.sub(direction.multiplyScalar(speed));
-            if (moveLeft) camera.position.add(new THREE.Vector3(-direction.z, 0, direction.x).normalize().multiplyScalar(speed));
-            if (moveRight) camera.position.sub(new THREE.Vector3(-direction.z, 0, direction.x).normalize().multiplyScalar(speed));
+            joes.forEach(joe => {
+                const direction = new THREE.Vector3()
+                    .subVectors(player.position, joe.position)
+                    .normalize();
+                joe.position.add(direction.multiplyScalar(0.05));
 
-            monsters.forEach((monster, index) => {
-                if (!monster.userData.isHit) {
-                    const directionToPlayer = new THREE.Vector3().subVectors(camera.position, monster.position).normalize();
-                    monster.position.add(directionToPlayer.multiplyScalar(0.03));
-
-                    if (Date.now() - monster.userData.lastThrow > 2000) {
-                        throwPage(monster);
-                        monster.userData.lastThrow = Date.now();
-                    }
-                } else {
-                    const directionFromPlayer = new THREE.Vector3().subVectors(monster.position, camera.position).normalize();
-                    monster.position.add(directionFromPlayer.multiplyScalar(0.05));
-
-                    if (monster.position.distanceTo(camera.position) > 100) {
-                        scene.remove(monster);
-                        monsters.splice(index, 1);
-                    }
-                }
-                monster.lookAt(camera.position);
-            });
-
-            pills.forEach((pill, pillIndex) => {
-                pill.position.add(pill.velocity);
-                
-                monsters.forEach((monster, monsterIndex) => {
-                    if (!monster.userData.isHit && pill.position.distanceTo(monster.position) < 1) {
-                        monster.material.map = new THREE.TextureLoader().load('joeback.png');
-                        monster.userData.isHit = true;
-                        scene.remove(pill);
-                        pills.splice(pillIndex, 1);
-                        score++;
-                        updateHUD();
-                    }
-                });
-                
-                if (pill.position.length() > 100) {
-                    scene.remove(pill);
-                    pills.splice(pillIndex, 1);
-                }
-            });
-
-            pages.forEach((page, pageIndex) => {
-                page.position.add(page.velocity);
-                page.lookAt(camera.position);
-
-                if (page.position.distanceTo(camera.position) < 1) {
+                if (joe.position.distanceTo(player.position) < 2) {
                     bankAccount -= 100;
                     updateHUD();
-                    scene.remove(page);
-                    pages.splice(pageIndex, 1);
-
                     if (bankAccount <= 0) {
                         alert("Listen Jack, I've got hairy legs. Game Over.");
                         location.reload();
                     }
                 }
-
-                if (page.position.distanceTo(camera.position) > 100) {
-                    scene.remove(page);
-                    pages.splice(pageIndex, 1);
-                }
             });
-
-            capsules.forEach((capsule, index) => {
-                capsule.rotation.x += 0.01;
-                capsule.rotation.y += 0.01;
-
-                if (capsule.position.distanceTo(camera.position) < 1) {
-                    pillCount += 5;
-                    updateHUD();
-                    scene.remove(capsule);
-                    capsules.splice(index, 1);
-                }
-            });
-
-            trees.concat(bushes).forEach(sprite => sprite.lookAt(camera.position));
 
             renderer.render(scene, camera);
         }
