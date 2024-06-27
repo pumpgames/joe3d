@@ -15,17 +15,30 @@
             background-color: rgba(0,0,0,0.5);
             padding: 10px;
         }
+        #links {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background-color: rgba(0,0,0,0.5);
+            padding: 10px;
+        }
+        a { color: white; }
     </style>
 </head>
 <body>
     <div id="info">
         <div>Bank Account: $<span id="bankAccount">10000</span></div>
-        <div>Monsters Evaded: <span id="score">0</span></div>
+        <div>Joes Evaded: <span id="score">0</span></div>
         <div>Pills: <span id="pills">20</span></div>
+    </div>
+    <div id="links">
+        CA: <a href="https://twitter.com" target="_blank">Twitter</a> | <a href="https://telegram.org" target="_blank">Telegram</a>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        let scene, camera, renderer, monsters = [], pills = [], pages = [], trees = [], bushes = [];
+        let scene, camera, renderer, monsters = [], pills = [], pages = [], trees = [], bushes = [], capsules = [];
         let bankAccount = 10000, score = 0, pillCount = 20;
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
 
@@ -37,7 +50,7 @@
             document.body.appendChild(renderer.domElement);
 
             // Ground
-            const groundGeometry = new THREE.PlaneGeometry(100, 100);
+            const groundGeometry = new THREE.PlaneGeometry(200, 200);
             const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x228B22 });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2;
@@ -51,9 +64,9 @@
             const bushTexture = loader.load('bush.png');
 
             // Create monsters
-            for (let i = 0; i < 20; i++) {
+            for (let i = 0; i < 50; i++) {
                 const monster = new THREE.Sprite(new THREE.SpriteMaterial({ map: joeTexture }));
-                monster.position.set(Math.random() * 80 - 40, 1, Math.random() * 80 - 40);
+                monster.position.set(Math.random() * 180 - 90, 1, Math.random() * 180 - 90);
                 monster.scale.set(2, 2, 1);
                 monster.userData = { isHit: false, lastThrow: 0 };
                 scene.add(monster);
@@ -61,18 +74,28 @@
             }
 
             // Create trees and bushes
-            for (let i = 0; i < 30; i++) {
+            for (let i = 0; i < 50; i++) {
                 const tree = new THREE.Sprite(new THREE.SpriteMaterial({ map: treeTexture }));
-                tree.position.set(Math.random() * 90 - 45, 2, Math.random() * 90 - 45);
+                tree.position.set(Math.random() * 190 - 95, 2, Math.random() * 190 - 95);
                 tree.scale.set(4, 4, 1);
                 scene.add(tree);
                 trees.push(tree);
 
                 const bush = new THREE.Sprite(new THREE.SpriteMaterial({ map: bushTexture }));
-                bush.position.set(Math.random() * 90 - 45, 1, Math.random() * 90 - 45);
+                bush.position.set(Math.random() * 190 - 95, 1, Math.random() * 190 - 95);
                 bush.scale.set(2, 2, 1);
                 scene.add(bush);
                 bushes.push(bush);
+            }
+
+            // Create capsules
+            for (let i = 0; i < 20; i++) {
+                const capsuleGeometry = new THREE.CapsuleGeometry(0.2, 0.5, 4, 8);
+                const capsuleMaterial = new THREE.MeshBasicMaterial({ color: 0x00FF00 });
+                const capsule = new THREE.Mesh(capsuleGeometry, capsuleMaterial);
+                capsule.position.set(Math.random() * 180 - 90, 0.5, Math.random() * 180 - 90);
+                scene.add(capsule);
+                capsules.push(capsule);
             }
 
             camera.position.set(0, 1.6, 0);
@@ -179,7 +202,7 @@
                     const directionFromPlayer = new THREE.Vector3().subVectors(monster.position, camera.position).normalize();
                     monster.position.add(directionFromPlayer.multiplyScalar(0.05));
 
-                    if (monster.position.distanceTo(camera.position) > 50) {
+                    if (monster.position.distanceTo(camera.position) > 100) {
                         scene.remove(monster);
                         monsters.splice(index, 1);
                     }
@@ -201,7 +224,7 @@
                     }
                 });
                 
-                if (pill.position.length() > 50) {
+                if (pill.position.length() > 100) {
                     scene.remove(pill);
                     pills.splice(pillIndex, 1);
                 }
@@ -218,14 +241,26 @@
                     pages.splice(pageIndex, 1);
 
                     if (bankAccount <= 0) {
-                        alert('Game Over! Your bank account is empty!');
+                        alert("Listen Jack, I've got hairy legs. Game Over.");
                         location.reload();
                     }
                 }
 
-                if (page.position.distanceTo(camera.position) > 50) {
+                if (page.position.distanceTo(camera.position) > 100) {
                     scene.remove(page);
                     pages.splice(pageIndex, 1);
+                }
+            });
+
+            capsules.forEach((capsule, index) => {
+                capsule.rotation.x += 0.01;
+                capsule.rotation.y += 0.01;
+
+                if (capsule.position.distanceTo(camera.position) < 1) {
+                    pillCount += 5;
+                    updateHUD();
+                    scene.remove(capsule);
+                    capsules.splice(index, 1);
                 }
             });
 
