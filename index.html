@@ -13,18 +13,20 @@
             left: 10px;
             color: white;
             font-family: Arial, sans-serif;
+            background-color: rgba(0,0,0,0.5);
+            padding: 10px;
         }
     </style>
 </head>
 <body>
     <div id="info">
         <div>Bank Account: $<span id="bankAccount">10000</span></div>
-        <div>Joes Evaded: <span id="score">0</span></div>
+        <div>Monsters Evaded: <span id="score">0</span></div>
         <div>Pills: <span id="pills">10</span></div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        let scene, camera, renderer, player, joes = [], monsters = [], pills = [], pages = [], trees = [], bushes = [];
+        let scene, camera, renderer, player, monsters = [], pills = [], pages = [], trees = [], bushes = [];
         let bankAccount = 10000, score = 0, pillCount = 10;
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
         const FOREST_SIZE = 100;
@@ -50,7 +52,6 @@
             createForest();
             player = createPlayer();
             scene.add(player);
-            createJoes(5);
             createMonsters(20);
 
             const ambientLight = new THREE.AmbientLight(0x404040);
@@ -104,57 +105,20 @@
             }
         }
 
-        function createJoeTexture(text1, text2, imageSrc, callback) {
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            canvas.width = 256;
-            canvas.height = 320;
-
-            const joeImg = new Image();
-            joeImg.onload = function() {
-                context.drawImage(joeImg, 0, 64, 256, 256);
-                
-                context.font = 'bold 24px Arial';
-                context.fillStyle = 'white';
-                context.textAlign = 'center';
-                context.fillText(text1, 128, 30);
-                context.fillText(text2, 128, 60);
-
-                const texture = new THREE.CanvasTexture(canvas);
-                callback(texture);
-            };
-            joeImg.src = imageSrc;
-        }
-
-        function createJoes(count) {
-            createJoeTexture('Hey Barron,', 'want to hang out?', 'joe.png', (texture) => {
-                const joeMaterial = new THREE.SpriteMaterial({ map: texture });
-
-                for (let i = 0; i < count; i++) {
-                    const joe = new THREE.Sprite(joeMaterial.clone());
-                    joe.scale.set(2.5, 2.5, 1);
-                    placeInOpenSpace(joe);
-                    joe.isHit = false;
-                    scene.add(joe);
-                    joes.push(joe);
-                }
-            });
-        }
-
         function createMonsters(count) {
-            createJoeTexture('Monster', 'Alert!', 'joe.png', (texture) => {
-                const monsterMaterial = new THREE.SpriteMaterial({ map: texture });
+            const loader = new THREE.TextureLoader();
+            const monsterTexture = loader.load('joe.png');
+            const monsterMaterial = new THREE.SpriteMaterial({ map: monsterTexture });
 
-                for (let i = 0; i < count; i++) {
-                    const monster = new THREE.Sprite(monsterMaterial.clone());
-                    monster.scale.set(2.5, 2.5, 1);
-                    placeInOpenSpace(monster);
-                    monster.isHit = false;
-                    monster.lastThrow = 0;
-                    scene.add(monster);
-                    monsters.push(monster);
-                }
-            });
+            for (let i = 0; i < count; i++) {
+                const monster = new THREE.Sprite(monsterMaterial.clone());
+                monster.scale.set(2.5, 2.5, 1);
+                placeInOpenSpace(monster);
+                monster.isHit = false;
+                monster.lastThrow = 0;
+                scene.add(monster);
+                monsters.push(monster);
+            }
         }
 
         function placeInOpenSpace(object) {
@@ -231,11 +195,11 @@
             document.getElementById('pills').textContent = pillCount;
         }
 
-        function changeJoeTexture(joe) {
-            createJoeTexture('Okay, nevermind!', 'Gotta go!', 'joeback.png', (newTexture) => {
-                joe.material.map = newTexture;
-                joe.material.needsUpdate = true;
-            });
+        function changeMonsterTexture(monster) {
+            const loader = new THREE.TextureLoader();
+            const newTexture = loader.load('joeback.png');
+            monster.material.map = newTexture;
+            monster.material.needsUpdate = true;
         }
 
         function animate() {
@@ -255,30 +219,6 @@
             camera.position.copy(player.position);
             camera.position.y += 1;
 
-            joes.forEach((joe, joeIndex) => {
-                if (!joe.isHit) {
-                    const directionToPlayer = new THREE.Vector3().subVectors(player.position, joe.position).normalize();
-                    joe.position.add(directionToPlayer.multiplyScalar(0.03));
-
-                    if (player.position.distanceTo(joe.position) < 2) {
-                        bankAccount -= 10;
-                        updateHUD();
-                        if (bankAccount <= 0) {
-                            alert('Game Over! Your bank account is empty!');
-                            location.reload();
-                        }
-                    }
-                } else {
-                    const directionFromPlayer = new THREE.Vector3().subVectors(joe.position, player.position).normalize();
-                    joe.position.add(directionFromPlayer.multiplyScalar(0.05));
-
-                    if (joe.position.distanceTo(player.position) > FOREST_SIZE * 0.5) {
-                        scene.remove(joe);
-                        joes.splice(joeIndex, 1);
-                    }
-                }
-            });
-
             monsters.forEach((monster, monsterIndex) => {
                 if (!monster.isHit) {
                     const directionToPlayer = new THREE.Vector3().subVectors(player.position, monster.position).normalize();
@@ -297,26 +237,16 @@
                         monsters.splice(monsterIndex, 1);
                     }
                 }
+                monster.lookAt(camera.position);
             });
 
             pills.forEach((pill, pillIndex) => {
                 pill.position.add(pill.velocity);
                 pill.rotation.x += 0.1;
                 
-                joes.forEach((joe, joeIndex) => {
-                    if (!joe.isHit && pill.position.distanceTo(joe.position) < 1.5) {
-                        changeJoeTexture(joe);
-                        joe.isHit = true;
-                        scene.remove(pill);
-                        pills.splice(pillIndex, 1);
-                        score++;
-                        updateHUD();
-                    }
-                });
-
                 monsters.forEach((monster, monsterIndex) => {
                     if (!monster.isHit && pill.position.distanceTo(monster.position) < 1.5) {
-                        changeJoeTexture(monster);
+                        changeMonsterTexture(monster);
                         monster.isHit = true;
                         scene.remove(pill);
                         pills.splice(pillIndex, 1);
